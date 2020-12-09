@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import { stringify } from 'querystring';
 
 const emptyLineRegex = /\n\s*\n/;
 

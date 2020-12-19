@@ -1,7 +1,5 @@
-import fs from 'fs';
 import path from 'path';
-
-const emptyLineRegex = /\n\s*\n/;
+import { getInputGroupsFromFile } from '../utilities';
 
 const requiredFieldsRegexes = [
   /byr:/,
@@ -14,9 +12,7 @@ const requiredFieldsRegexes = [
   ///cid:/
 ]
 
-
-const fileContent = fs.readFileSync(path.resolve(__dirname, 'inputProblem.txt'), 'utf8');
-const allPassports = fileContent.split(emptyLineRegex);
+const allPassports = getInputGroupsFromFile(path.resolve(__dirname, 'inputProblem.txt'));
 
 let validPassports = 0;
 

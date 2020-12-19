@@ -3,6 +3,6 @@
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "esModuleInterop": true,
-    "target": "ES6"
+    "target": "ESNext"
   }
 }

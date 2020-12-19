@@ -1,25 +1,20 @@
 import path from "path";
-import { getInputGroupsFromFile } from "../utilities";
+import { getLinesFromFile } from "../utilities";
+import { getBaggageRulesForConfig } from "./bagRulesUtils";
+import { BagRules } from "./types";
 
-const allAnswerGroups = getInputGroupsFromFile(path.resolve(__dirname, 'problemInput.txt'));
+const baggageRulesConfig = getLinesFromFile(path.resolve(__dirname, 'problemInput.txt'));
 
-const totalConsensus = allAnswerGroups.reduce((total: number, group: string) => {
-  const peopleAnswers = group.split(/\r?\n|\r/g);
-  const peopleCount = peopleAnswers.length;
+const baggageRules = getBaggageRulesForConfig(baggageRulesConfig);
 
-  let consensusPerGroup = 0;
-  const answerCounts = {};
-  peopleAnswers.forEach(answerSet => {
-    [...answerSet].forEach(answer => {
-      answerCounts[answer] = answerCounts[answer] ? answerCounts[answer] + 1 : 1;
+const bagCounts = findBagCounts("shiny gold", baggageRules);
 
-      if (answerCounts[answer] === peopleCount) {
-        consensusPerGroup++;
-      }
-    });
-  });
-  // console.log("returning", consensusPerGroup, "for", answerCounts);
-  return consensusPerGroup + total;
-}, 0);
+console.log("Found a total of", bagCounts, "bags inside shiny");
 
-console.log("Found a total of", totalConsensus, "consensus responses");
+function findBagCounts(needle: string, bagRules: BagRules): number {
+  const innerBags = bagRules[needle];
+
+  return Object.entries(innerBags).reduce((total, [color, count]) => {
+    return total + count + count * findBagCounts(color, bagRules);
+  }, 0)
+}

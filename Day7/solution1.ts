@@ -1,37 +1,26 @@
 import path from "path";
-import { config } from "process";
 import { getLinesFromFile } from "../utilities";
-import { BagRules, ContainRules } from "./types";
+import { getBaggageRulesForConfig } from "./bagRulesUtils";
+import { BagRules } from "./types";
 
-const enclosingBagRegex = /([a-zA-Z ]+) bags contain/;
-const innerBagsRegex = /(?:(\d+) ([a-zA-Z ]+) bags?)+/g;
-
-const baggageRulesConfig = getLinesFromFile(path.resolve(__dirname, 'testInput.txt'));
+const baggageRulesConfig = getLinesFromFile(path.resolve(__dirname, 'problemInput.txt'));
 
 const baggageRules = getBaggageRulesForConfig(baggageRulesConfig);
 
-console.log(baggageRules);
+const validBags = findValidBags("shiny gold", baggageRules);
 
-function getBaggageRulesForConfig(rulesConfig: string[]): BagRules {
-  let bagRules: BagRules = null;
+console.log("Found a total of", validBags.length, "valid enclosures for shiny");
 
-  rulesConfig.forEach(config => {
-    const containRule: ContainRules = {};
+function findValidBags(needle: string, bagRules: BagRules): string[] {
+  const colorsToCheck = Object.entries(bagRules).filter(([_enclosing, rules]) => {
+    return rules ? !!rules[needle] : false;
+  }).map(([enclosing, _rules]) => enclosing);
 
-    let innerBagsMatch;
-    while (innerBagsMatch = innerBagsRegex.exec(config)) {
-      bagRules = bagRules || {};
+  console.log("For", needle, "found", colorsToCheck);
 
-      const color = innerBagsMatch[2];
-      const count = parseInt(innerBagsMatch[1]);
-      containRule[color] = count;
-    }
+  const levelsForEnclosing = colorsToCheck.map(color => findValidBags(color, bagRules)).flat();
 
-    const enclosingMatches = config.match(enclosingBagRegex);
-    const enclosingColor = enclosingMatches[1];
+  const uniques = new Set<string>([...colorsToCheck, ...levelsForEnclosing]);
 
-    bagRules[enclosingColor] = containRule;
-  });
-
-  return bagRules;
+  return [...uniques.keys()];
 }

@@ -1,101 +1,105 @@
 import path from "path";
 import { getLinesFromFile } from "../utilities";
 
-const FLOOR = ".";
-const EMPTY = "L";
-const FULL = "#";
+const actionRegex = /([A-Z])(\d+)/;
 
-interface Direction {
+type Action = "N" | "S" | "E" | "W" | "L" | "R" | "F";
+
+type RelativeUnit = number;
+
+// 0,0 is always the ship for the waypoint.
+const executionMap: {
+  [action: string]:
+  (shipState: ShipState, waypointState: WaypointState, value: number) =>
+    [ShipState, WaypointState]
+} = {
+  "N": (shipState: ShipState, waypointState: WaypointState, value: number) => (
+    [{ ...shipState }, { ...waypointState, y: waypointState.y + value }] // Waypoint go up
+  ),
+  "S": (shipState: ShipState, waypointState: WaypointState, value: number) => (
+    [{ ...shipState }, { ...waypointState, y: waypointState.y - value }] // Waypoint go down
+  ),
+  "E": (shipState: ShipState, waypointState: WaypointState, value: number) => (
+    [{ ...shipState }, { ...waypointState, x: waypointState.x + value }] // Waypoint go right
+  ),
+  "W": (shipState: ShipState, waypointState: WaypointState, value: number) => (
+    [{ ...shipState }, { ...waypointState, x: waypointState.x - value }] // Waypoint go left
+  ),
+  "L": (shipState: ShipState, waypointState: WaypointState, value: number) => ([{ ...shipState }, calculateNextOrientation("L", value, waypointState)]),
+  "R": (shipState: ShipState, waypointState: WaypointState, value: number) => ([{ ...shipState }, calculateNextOrientation("R", value, waypointState)]),
+  "F": (shipState: ShipState, waypointState: WaypointState, value: number) => (
+    [
+      {
+        x: shipState.x + value * waypointState.x,
+        y: shipState.y + value * waypointState.y
+      },
+      { ...waypointState }
+    ]),
+}
+
+interface ShipState {
   x: number,
   y: number
+};
+
+interface WaypointState {
+  x: RelativeUnit,
+  y: RelativeUnit
 }
 
-const directions: Direction[] = [
-  { x: -1, y: 0 },
-  { x: -1, y: -1 },
-  { x: 0, y: -1 },
-  { x: 1, y: -1 },
-  { x: 1, y: 0 },
-  { x: 1, y: 1 },
-  { x: 0, y: 1 },
-  { x: -1, y: 1 },
-]
+interface ShipAction {
+  action: Action,
+  value: number
+};
 
-const seatingLines = getLinesFromFile(path.resolve(__dirname, 'problemInput.txt'));
+let shipState: ShipState = {
+  x: 0,
+  y: 0
+};
 
-console.log("Initial seating\n" + seatingLines.join("\n"));
+let waypointState: WaypointState = {
+  x: 10,
+  y: 1
+};
 
-const finalSeatingArrangements = executeSeating(seatingLines);
+const actionLines = getLinesFromFile(path.resolve(__dirname, 'problemInput.txt'));
 
-const occupiedSeats = countOccupiedSeats(finalSeatingArrangements);
+const actions: ShipAction[] = actionLines.map(actionLine => {
+  const matches = actionLine.match(actionRegex);
+  return {
+    action: matches[1] as Action,
+    value: parseInt(matches[2])
+  };
+});
 
-console.log("Final seatings\n" + finalSeatingArrangements.join("\n"));
+actions.forEach(action => {
+  console.log("Executing action", action);
+  [shipState, waypointState] = executionMap[action.action](shipState, waypointState, action.value);
+  console.log("got State", shipState);
+});
 
-console.log("At the end of seating, found", occupiedSeats, "occupied seats");
+console.log("Final Shipstate", shipState, "Solution is", Math.abs(shipState.x) + Math.abs(shipState.y));
 
-function executeSeating(seating: string[]): string[] {
-  let previousSeating = seating;
-  let nextSeating = executeStep(previousSeating);
-
-  while (!areSeatingsEqual(nextSeating, previousSeating)) {
-    previousSeating = nextSeating;
-    nextSeating = executeStep(previousSeating);
+function calculateNextOrientation(direction: Action, value: number, waypointState: WaypointState): WaypointState {
+  if (value === 180) {
+    return {
+      x: -waypointState.x,
+      y: -waypointState.y
+    };
   }
 
-  return nextSeating;
-}
-
-function executeStep(seating: string[]): string[] {
-  const newSeating = [];
-
-  for (let y = 0; y < seating.length; y++) {
-    const seatLine = seating[y];
-    const newSeatLine = [];
-    for (let x = 0; x < seatLine.length; x++) {
-      const seat = seatLine[x];
-      const newSeat = nextSeat(seat, x, y, seating);
-      newSeatLine.push(newSeat);
-    }
-    newSeating.push(newSeatLine.join(""));
+  if ((direction === "L" && value === 270) || (direction === "R" && value === 90)) {
+    return {
+      x: waypointState.y,
+      y: -waypointState.x
+    };
   }
 
-  return newSeating;
-}
-
-function nextSeat(seat: string, x: number, y: number, seating: string[]): string {
-  switch (seat) {
-    case FLOOR:
-      return FLOOR;
-    case EMPTY: {
-      const adjacentSeats: string = getVisibleSeats(x, y, seating);
-      return [...adjacentSeats].every(seat => (seat === EMPTY || seat === FLOOR)) ? FULL : EMPTY;
-    }
-    case FULL: {
-      const adjacentSeats: string = getVisibleSeats(x, y, seating);
-      return [...adjacentSeats].filter(seat => seat === FULL).length >= 5 ? EMPTY : FULL;
-    }
+  if ((direction === "R" && value === 270) || (direction === "L" && value === 90)) {
+    return {
+      x: -waypointState.y,
+      y: waypointState.x
+    };
   }
-}
 
-function getVisibleSeats(x: number, y: number, seating: string[]): string {
-  const stringRes = directions.map(direction => {
-    let xx = x, yy = y, visibleSeat;
-
-    do {
-      xx = xx + direction.x;
-      yy = yy + direction.y;
-      visibleSeat = seating[yy]?.[xx];
-    } while (visibleSeat && visibleSeat === FLOOR);
-
-    return visibleSeat || "";
-  });
-  return stringRes.join("");
-}
-
-function areSeatingsEqual(seating1: string[], seating2: string[]): boolean {
-  return seating1.map((seating, index) => seating === seating2[index]).every(lol => lol);
-}
-
-function countOccupiedSeats(seatingLines: string[]): number {
-  return seatingLines.reduce((total, seatingLine) => [...seatingLine].filter(seat => seat === FULL).length + total, 0);
 }

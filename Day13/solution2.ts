@@ -1,3 +1,4 @@
+import { time } from "console";
 import path from "path";
 import { getLinesFromFile } from "../utilities";
 
@@ -16,21 +17,35 @@ lines[1].split(",").forEach((val, index) => {
   }
 });
 
-const minTimeStamp = Math.min(...departureTimes);
-let timestamp = 100000000000000;
+const firstTime = departureTimes[0];
+const secondTime = departureTimes[1];
 
-while (!isTimestampValid(timestamp)) {
-  timestamp += minTimeStamp; // Increment by min, as the first mod has to be 0
+let timeStamp = firstTime;
+
+while ((timeStamp + timeToOffsetMap[secondTime]) % secondTime !== 0) {
+  timeStamp += firstTime;
 }
 
-console.log("Found initial timestamp", timestamp, "after ms", Date.now() - startTime);
+console.log("found", timeStamp, "as timestamp that fits", firstTime, secondTime);
 
-function isTimestampValid(timestampToCheck: number): boolean {
-  const results = departureTimes.map(time => {
-    const offset = (Math.ceil(timestampToCheck / time) * time) - timestampToCheck;
-    // console.log("Checking departure time", time, "the offset from", timestampToCheck, "is", offset, "and this is the map", timeToOffsetMap);
-    return timeToOffsetMap[time] === offset;
-  });
+let constant = firstTime * secondTime;
 
-  return results.every(res => res);
+for (let index = 2; index < departureTimes.length; index++) {
+  const currentTime = departureTimes[index];
+
+  while ((timeStamp + timeToOffsetMap[currentTime]) % currentTime !== 0) {
+    timeStamp += constant;
+  }
+
+  console.log("Sanity check");
+  const mods = departureTimes.map(t => t - (timeStamp % t));
+  console.log(mods);
+
+  // console.log("found that", timeStamp + timeToOffsetMap[currentTime], "mod", currentTime, "is", (timeStamp + timeToOffsetMap[currentTime]) % currentTime);
+  constant = constant * currentTime;
+  // console.log("now const is", constant);
 }
+
+console.log(timeToOffsetMap);
+
+console.log("Found a final time of", timeStamp);
